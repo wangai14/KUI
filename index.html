@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>KUI 面板</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div id="app" class="max-w-2xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-2xl font-bold mb-4 text-center">KUI 节点管理面板 (Pages 版)</h1>
+        
+        <div class="space-y-4 mb-6">
+            <input v-model="form.name" placeholder="节点名称" class="w-full border p-2 rounded">
+            <input v-model="form.vps_ip" placeholder="VPS IP" class="w-full border p-2 rounded">
+            <select v-model="form.protocol" class="w-full border p-2 rounded">
+                <option value="VLESS">VLESS</option>
+                <option value="Reality">Reality</option>
+                <option value="Hysteria2">Hysteria 2</option>
+            </select>
+            <input v-model="form.port" type="number" placeholder="端口" class="w-full border p-2 rounded">
+            <button @click="save" class="w-full bg-blue-600 text-white p-2 rounded">保存节点</button>
+        </div>
+        
+        <hr class="my-4">
+        
+        <ul>
+            <li v-if="nodes.length === 0" class="text-center text-gray-400 py-4">暂无节点数据</li>
+            <li v-for="(node, i) in nodes" :key="i" class="flex justify-between items-center border-b py-2">
+                <div>
+                    <span class="font-bold">{{node.name}}</span> - {{node.vps_ip}} 
+                    <span class="text-sm text-gray-500">({{node.protocol}} : {{node.port}})</span>
+                </div>
+                <button @click="del(i)" class="text-red-500 hover:text-red-700">删除</button>
+            </li>
+        </ul>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        createApp({
+            setup() {
+                const nodes = ref([]);
+                const form = ref({ name: '', vps_ip: '', protocol: 'VLESS', port: 443 });
+                
+                const load = async () => {
+                    const res = await fetch('/api/list');
+                    nodes.value = await res.json();
+                };
+                
+                const save = async () => {
+                    if(!form.value.name || !form.value.vps_ip) return;
+                    await fetch('/api/add', { 
+                        method: 'POST', 
+                        body: JSON.stringify({...form.value, uuid: crypto.randomUUID()}) 
+                    });
+                    form.value = { name: '', vps_ip: '', protocol: 'VLESS', port: 443 };
+                    load();
+                };
+                
+                const del = async (i) => {
+                    await fetch('/api/del?index=' + i, { method: 'DELETE' });
+                    load();
+                };
+                
+                onMounted(load);
+                return { nodes, form, save, del };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
