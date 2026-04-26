@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# 解析传入的安装参数
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --api) API_DOMAIN="$2"; shift ;;
@@ -11,7 +10,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [ -z "$API_DOMAIN" ] || [ -z "$VPS_IP" ] || [ -z "$ADMIN_TOKEN" ]; then
-    echo "缺少参数！请直接在 Web 控制台复制完整的部署命令。"
+    echo "缺少必要参数！请从 Web 面板直接复制完整命令。"
     exit 1
 fi
 
@@ -19,16 +18,14 @@ echo ">> [1/4] 安装必要依赖及组件..."
 apt-get update -y >/dev/null 2>&1
 apt-get install -y curl wget python3 openssl >/dev/null 2>&1
 
-echo ">> [2/4] 部署 Sing-box 底层核心..."
+echo ">> [2/4] 部署 Sing-box 核心服务..."
 bash <(curl -fsSL https://sing-box.app/deb-install.sh) >/dev/null 2>&1
 
 echo ">> [3/4] 初始化 Python 节点守护进程..."
 mkdir -p /opt/kui
 
-# 自动从你的 GitHub 仓库下载 agent.py
 wget -qO /opt/kui/agent.py "https://raw.githubusercontent.com/a62169722/KUI/main/vps/agent.py"
 
-# 生成 Agent 所需的本地配置
 cat <<EOF > /opt/kui/config.json
 {
   "api_url": "$API_DOMAIN/api/config",
