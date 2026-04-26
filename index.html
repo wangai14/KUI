@@ -151,7 +151,16 @@
                             </div>
 
                             <div v-if="newNodeParams[vps.ip].protocol === 'Reality'" class="bg-gray-50 p-2 rounded mb-2 text-sm border">
-                                <input v-model="newNodeParams[vps.ip].sni" placeholder="伪装域名: gateway.icloud.com" class="w-full border p-1.5 rounded outline-none text-xs">
+                                <input v-model="newNodeParams[vps.ip].sni" list="sni-recommend" placeholder="伪装域名: 支持手填或下拉选择" class="w-full border p-1.5 rounded outline-none text-xs">
+                                <datalist id="sni-recommend">
+                                    <option value="www.apple.com"></option>
+                                    <option value="gateway.icloud.com"></option>
+                                    <option value="itunes.apple.com"></option>
+                                    <option value="swdist.apple.com"></option>
+                                    <option value="www.microsoft.com"></option>
+                                    <option value="update.microsoft.com"></option>
+                                    <option value="dl.google.com"></option>
+                                </datalist>
                             </div>
 
                             <div v-if="newNodeParams[vps.ip].protocol === 'dokodemo-door'" class="bg-blue-50 p-2 rounded mb-2 text-sm border border-blue-100">
@@ -256,7 +265,7 @@
                             else s.unlock_type = "custom";
                             
                             if(!newNodeParams[s.ip]) {
-                                newNodeParams[s.ip] = { protocol: 'VLESS', port: 443, sni: 'www.apple.com', relay_type: 'external', traffic_limit_gb: '', expire_date: '' };
+                                newNodeParams[s.ip] = { protocol: 'VLESS', port: 443, sni: '', relay_type: 'external', traffic_limit_gb: '', expire_date: '' };
                             }
                         });
                     } catch(e) {}
