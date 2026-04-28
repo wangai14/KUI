@@ -1,5 +1,5 @@
 
-# 🚀 KUI - Serverless 极简节点网关控制台
+# 🚀 KUI - VPS群控网关
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Architecture](https://img.shields.io/badge/architecture-100%25%20Serverless-orange.svg)
