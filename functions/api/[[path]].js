@@ -1,6 +1,5 @@
 // ==========================================
-// KUI Serverless 聚合网关后端 - 探针全量数据吸收完全体
-// (包含：7大协议 + Argo全自动穿透 + TUIC修复 + 探针高阶硬件监控吸收 + 纯D1热升级)
+// KUI Serverless 聚合网关后端 - 探针全量数据吸收 + 自动热修复完全体
 // ==========================================
 
 async function sha256(text) {
@@ -8,13 +7,11 @@ async function sha256(text) {
     return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 🌟 核心进化：D1 数据库自动无损热挂载高级探针字段
+// D1 数据库自动无损热挂载高级探针字段
 async function ensureDbSchema(db) {
-    // 1. 确保多用户架构的旧表字段兼容
     try { await db.prepare("SELECT username FROM nodes LIMIT 1").first(); } 
     catch (e) { try { await db.prepare("ALTER TABLE nodes ADD COLUMN username TEXT DEFAULT 'admin'").run(); } catch(e){} }
     
-    // 2. 确保用户表存在
     try { await db.prepare("SELECT username FROM users LIMIT 1").first(); } 
     catch (e) {
         try {
@@ -26,21 +23,18 @@ async function ensureDbSchema(db) {
         } catch(e){}
     }
 
-    // 3. 🌟 精华吸收：动态嗅探并追加高级探针监控字段 (平滑热升级)
-    try { await db.prepare("SELECT disk FROM servers LIMIT 1").first(); } 
-    catch (e) {
-        const newCols = [
-            'disk INTEGER DEFAULT 0', 
-            'load TEXT DEFAULT ""', 
-            'uptime TEXT DEFAULT ""', 
-            'net_in_speed INTEGER DEFAULT 0', 
-            'net_out_speed INTEGER DEFAULT 0', 
-            'tcp_conn INTEGER DEFAULT 0', 
-            'udp_conn INTEGER DEFAULT 0'
-        ];
-        for (let col of newCols) { 
-            try { await db.prepare(`ALTER TABLE servers ADD COLUMN ${col}`).run(); } catch(err){} 
-        }
+    // 动态追加高级探针监控字段
+    const newCols = [
+        'disk INTEGER DEFAULT 0', 
+        'load TEXT DEFAULT ""', 
+        'uptime TEXT DEFAULT ""', 
+        'net_in_speed INTEGER DEFAULT 0', 
+        'net_out_speed INTEGER DEFAULT 0', 
+        'tcp_conn INTEGER DEFAULT 0', 
+        'udp_conn INTEGER DEFAULT 0'
+    ];
+    for (let col of newCols) { 
+        try { await db.prepare(`ALTER TABLE servers ADD COLUMN ${col}`).run(); } catch(err){} 
     }
 }
 
@@ -82,16 +76,25 @@ export async function onRequest(context) {
     const action = params.path ? params.path[0] : ''; 
     const db = env.DB; 
 
-    // [1] Agent 探针上报接口 (全量吸收硬件监控指标 + Argo 域名静默回传)
+    // [1] Agent 探针上报接口 (全量吸收硬件监控指标 + 自我修复容错)
     if (action === "report" && method === "POST") {
         if (!(await verifyAuth(request.headers.get("Authorization"), db, env))) return new Response("Unauthorized", { status: 401 });
         const data = await request.json(); 
         const nowMs = Date.now();
         
-        // 🌟 核心写入：将探针抓取的所有高阶数据（磁盘/负载/上下行速率）精准入库
-        await db.prepare("UPDATE servers SET cpu=?, mem=?, disk=?, load=?, uptime=?, net_in_speed=?, net_out_speed=?, tcp_conn=?, udp_conn=?, last_report=?, alert_sent=0 WHERE ip=?").bind(
-            data.cpu||0, data.mem||0, data.disk||0, data.load||'', data.uptime||'', data.net_in_speed||0, data.net_out_speed||0, data.tcp_conn||0, data.udp_conn||0, nowMs, data.ip
-        ).run();
+        // 🌟 容错核心：尝试写入，如果因为缺字段失败，立刻升级数据库再重试
+        try {
+            await db.prepare("UPDATE servers SET cpu=?, mem=?, disk=?, load=?, uptime=?, net_in_speed=?, net_out_speed=?, tcp_conn=?, udp_conn=?, last_report=?, alert_sent=0 WHERE ip=?").bind(
+                data.cpu||0, data.mem||0, data.disk||0, data.load||'', data.uptime||'', data.net_in_speed||0, data.net_out_speed||0, data.tcp_conn||0, data.udp_conn||0, nowMs, data.ip
+            ).run();
+        } catch (e) {
+            // 捕获到表结构不匹配异常，触发热升级
+            await ensureDbSchema(db);
+            // 重新写入数据，防止本次心跳丢失
+            await db.prepare("UPDATE servers SET cpu=?, mem=?, disk=?, load=?, uptime=?, net_in_speed=?, net_out_speed=?, tcp_conn=?, udp_conn=?, last_report=?, alert_sent=0 WHERE ip=?").bind(
+                data.cpu||0, data.mem||0, data.disk||0, data.load||'', data.uptime||'', data.net_in_speed||0, data.net_out_speed||0, data.tcp_conn||0, data.udp_conn||0, nowMs, data.ip
+            ).run();
+        }
         
         const stmts = [];
         let totalDelta = 0;
@@ -103,7 +106,6 @@ export async function onRequest(context) {
             }
         }
         
-        // 接收 VPS 端动态抓取的 Argo 临时域名
         if (data.argo_urls && data.argo_urls.length > 0) {
             for (let argo of data.argo_urls) {
                 stmts.push(db.prepare("UPDATE nodes SET sni = ? WHERE id = ? AND protocol = 'VLESS-Argo' AND sni != ?").bind(argo.url, argo.id, argo.url));
@@ -147,7 +149,7 @@ export async function onRequest(context) {
         return Response.json({ success: true, configs: machineNodes });
     }
 
-    // [3] 全量聚合订阅接口 (包含全自动 Argo 与 TUIC 修复)
+    // [3] 全量聚合订阅接口 (修复了 TUIC 客户端的证书拦截问题)
     if (action === "sub" && method === "GET") {
         const ip = url.searchParams.get("ip");
         const reqUser = url.searchParams.get("user");
@@ -209,7 +211,6 @@ export async function onRequest(context) {
         return new Response(btoa(unescape(encodeURIComponent(subLinks.join('\n')))), { headers: { "Content-Type": "text/plain; charset=utf-8" }});
     }
 
-    // [4] 面板登录接口 (触发数据库热升级与双轨鉴权)
     if (action === "login" && method === "POST") {
         const username = await verifyAuth(request.headers.get("Authorization"), db, env);
         if (username) {
@@ -305,7 +306,6 @@ export async function onRequest(context) {
     } catch (err) { return Response.json({ error: err.message }, { status: 500 }); }
 }
 
-// Telegram 自动巡检告警 (Cron触发)
 export async function onRequestScheduled(context) {
     const { env } = context;
     const db = env.DB;
