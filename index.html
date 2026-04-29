@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KUI Serverless 聚合面板</title>
-    <!-- 核心依赖库 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/tweetnacl@1.0.3/nacl-fast.min.js"></script>
@@ -21,95 +20,89 @@
 <body class="bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 min-h-screen text-slate-700 font-sans p-4 md:p-8 selection:bg-indigo-200 selection:text-indigo-900">
     <div id="app" v-cloak class="max-w-6xl mx-auto space-y-8">
         
-        <div v-if="!isLoggedIn" class="bg-white/60 backdrop-blur-xl border border-white/80 p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 max-w-sm mx-auto mt-24 transform transition-all hover:shadow-indigo-200/60">
-            <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mx-auto mb-6 shadow-lg shadow-indigo-200 flex items-center justify-center"><span class="text-white text-3xl">✨</span></div>
+        <div v-if="!isLoggedIn" class="bg-white/60 backdrop-blur-xl border border-white/80 p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 max-w-sm mx-auto mt-24 transform transition-all">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mx-auto mb-6 shadow-lg flex items-center justify-center"><span class="text-white text-3xl">✨</span></div>
             <h2 class="text-3xl font-black mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">系统准入</h2>
-            <input v-model="loginUser" placeholder="用户名 (管理员为 admin)" class="w-full bg-white/50 border border-white/60 p-4 rounded-2xl mb-4 transition-all hover:bg-white/80 focus:bg-white">
-            <input v-model="password" type="password" placeholder="请输入密码" @keyup.enter="login" class="w-full bg-white/50 border border-white/60 p-4 rounded-2xl mb-8 transition-all hover:bg-white/80 focus:bg-white">
-            <button @click="login" class="w-full bg-gradient-to-r from-slate-800 to-black text-white p-4 rounded-2xl font-bold shadow-lg shadow-slate-400/30 hover:scale-[1.02] active:scale-95 transition-all">登 入</button>
+            <input v-model="loginUser" placeholder="用户名 (管理员为 admin)" class="w-full bg-white/50 border border-white/60 p-4 rounded-2xl mb-4 focus:bg-white transition-all">
+            <input v-model="password" type="password" placeholder="请输入密码" @keyup.enter="login" class="w-full bg-white/50 border border-white/60 p-4 rounded-2xl mb-8 focus:bg-white transition-all">
+            <button @click="login" class="w-full bg-gradient-to-r from-slate-800 to-black text-white p-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] active:scale-95 transition-all">登 入</button>
         </div>
 
-        <div v-else class="space-y-8">
+        <div v-else class="space-y-8 animate-fade-in">
+            
             <div class="bg-white/70 backdrop-blur-xl border border-white/80 p-4 md:px-8 rounded-full shadow-xl shadow-slate-200/50 flex flex-col md:flex-row justify-between items-center sticky top-4 z-50">
                 <h1 class="text-2xl font-black mb-4 md:mb-0 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">Cluster <span class="font-medium text-slate-400">Gateway</span></h1>
                 <div class="flex gap-3 items-center">
                     <span class="text-xs font-bold text-emerald-500 bg-emerald-100/50 px-3 py-1.5 rounded-full border border-emerald-200 animate-pulse hidden md:inline-block">🟢 实时监控中</span>
-                    <button v-if="role === 'admin'" @click="copyCommand(generateSubLink(''), '全量聚合订阅已复制！')" class="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-indigo-200 transition-all hover:scale-105 active:scale-95">🔗 复制全量订阅</button>
+                    <button v-if="role === 'admin'" @click="copyCommand(generateSubLink(''), '全量聚合订阅已复制！')" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md hover:scale-105 active:scale-95 transition-all">🔗 复制全量订阅</button>
                     <button @click="refreshData" class="bg-white/50 hover:bg-white/80 border border-slate-200 px-5 py-2 rounded-full text-sm font-medium transition-all shadow-sm">🔄 刷新</button>
-                    <button @click="logout" class="text-rose-500 hover:bg-rose-50 border border-transparent hover:border-rose-100 px-5 py-2 rounded-full text-sm font-bold transition-all">退出</button>
+                    <button @click="logout" class="text-rose-500 hover:bg-rose-50 px-5 py-2 rounded-full text-sm font-bold transition-all">退出</button>
                 </div>
             </div>
 
-            <div v-if="role === 'admin'" class="animate-fade-in">
-                <div class="flex justify-center mb-8">
-                    <div class="bg-slate-200/50 p-1.5 rounded-full flex gap-1 backdrop-blur-sm border border-white/50 shadow-inner">
-                        <button @click="activeTab = 'nodes'" :class="activeTab === 'nodes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="px-8 py-2.5 rounded-full font-bold transition-all duration-300">服务器与节点</button>
-                        <button @click="activeTab = 'users'" :class="activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="px-8 py-2.5 rounded-full font-bold transition-all duration-300">多用户管理</button>
+            <div v-if="role === 'admin'" class="space-y-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
+                        <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">ONLINE SERVERS</div>
+                        <div class="text-3xl font-black text-slate-700">{{ globalOnline }} / {{ servers.length }}</div>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
+                        <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">AGGREGATE TRAFFIC</div>
+                        <div class="text-3xl font-black text-slate-700">{{ formatBytes(globalTraffic) }}</div>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
+                        <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">DOWNLOAD</div>
+                        <div class="text-2xl font-black text-emerald-500 truncate">↓ {{ formatBytes(globalSpeedIn) }}/s</div>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
+                        <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">UPLOAD</div>
+                        <div class="text-2xl font-black text-blue-500 truncate">↑ {{ formatBytes(globalSpeedOut) }}/s</div>
                     </div>
                 </div>
 
-                <!-- [Tab] 多用户管理 -->
+                <div class="flex justify-center mb-4">
+                    <div class="bg-slate-200/50 p-1.5 rounded-full flex gap-1 backdrop-blur-sm border border-white/50 shadow-inner">
+                        <button @click="activeTab = 'nodes'" :class="activeTab === 'nodes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'" class="px-8 py-2.5 rounded-full font-bold transition-all">服务器与节点</button>
+                        <button @click="activeTab = 'users'" :class="activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'" class="px-8 py-2.5 rounded-full font-bold transition-all">多用户管理</button>
+                    </div>
+                </div>
+
                 <div v-if="activeTab === 'users'" class="space-y-6">
                     <div class="bg-white/60 backdrop-blur-xl p-6 md:p-8 rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 flex flex-col xl:flex-row gap-4 items-end">
                         <div class="flex-1 w-full"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">新建用户名</label><input v-model="newUser.username" placeholder="如: user01" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
                         <div class="flex-1 w-full"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">登录密码</label><input v-model="newUser.password" type="password" placeholder="******" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
-                        <div class="flex-1 w-full"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">配额 (GB, 0为无限)</label><input v-model="newUser.traffic_limit_gb" type="number" placeholder="0" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
+                        <div class="flex-1 w-full"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">配额 (GB)</label><input v-model="newUser.traffic_limit_gb" type="number" placeholder="0为无限" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
                         <div class="flex-1 w-full"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">有效期</label><input v-model="newUser.expire_date" type="date" class="w-full bg-white/50 border border-white p-3 rounded-2xl text-slate-600 transition hover:bg-white focus:bg-white"></div>
                         <button @click="addUser" class="w-full xl:w-auto bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-black transition-all shadow-lg hover:scale-105 active:scale-95 whitespace-nowrap">开通用户</button>
                     </div>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div v-for="u in users" :key="u.username" class="bg-white/70 backdrop-blur-xl p-6 rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 relative overflow-hidden group hover:shadow-indigo-100/50 transition-all">
+                        <div v-for="u in users" :key="u.username" class="bg-white/70 backdrop-blur-xl p-6 rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 hover:shadow-indigo-100/50 transition-all">
                             <div class="flex justify-between items-start mb-6">
                                 <div>
-                                    <h3 class="text-2xl font-black text-slate-800 mb-1 flex items-center gap-2">{{ u.username }} <span v-if="u.enable===0" class="text-[10px] bg-rose-100 text-rose-600 px-2 py-1 rounded-lg">已封禁</span></h3>
+                                    <h3 class="text-2xl font-black text-slate-800 flex items-center gap-2">{{ u.username }} <span v-if="u.enable===0" class="text-[10px] bg-rose-100 text-rose-600 px-2 py-1 rounded-lg">已封禁</span></h3>
                                     <div class="text-xs text-slate-400 font-medium">到期: {{ formatDate(u.expire_time) }}</div>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button @click="toggleUser(u.username, u.enable===1?0:1)" class="px-3 py-1.5 bg-white border border-slate-100 hover:bg-slate-50 rounded-xl text-xs font-bold transition-all shadow-sm">{{ u.enable===1?'停用':'启用' }}</button>
-                                    <button @click="deleteUser(u.username)" class="px-3 py-1.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-500 rounded-xl text-xs font-bold transition-all shadow-sm">删除</button>
+                                    <button @click="toggleUser(u.username, u.enable===1?0:1)" class="px-3 py-1.5 bg-white border border-slate-100 hover:bg-slate-50 rounded-xl text-xs font-bold shadow-sm">{{ u.enable===1?'停用':'启用' }}</button>
+                                    <button @click="deleteUser(u.username)" class="px-3 py-1.5 bg-rose-50 text-rose-500 rounded-xl text-xs font-bold transition-all">删除</button>
                                 </div>
                             </div>
-                            <div>
-                                <div class="flex justify-between text-xs text-slate-500 mb-2 font-bold"><span>已用: {{ formatBytes(u.traffic_used) }}</span><span>上限: {{ u.traffic_limit > 0 ? formatBytes(u.traffic_limit) : '无限' }}</span></div>
-                                <div class="w-full bg-slate-100 rounded-full h-2.5 mb-3 overflow-hidden shadow-inner"><div :class="(u.traffic_limit > 0 && u.traffic_used >= u.traffic_limit) ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'" class="h-2.5 rounded-full transition-all duration-500" :style="{ width: getTrafficPercent(u.traffic_used, u.traffic_limit) + '%' }"></div></div>
-                                <button v-if="u.traffic_used > 0" @click="resetUserTraffic(u.username)" class="text-[11px] text-indigo-500 hover:text-indigo-700 font-bold hover:underline transition-all">清空流量记录</button>
-                            </div>
+                            <div class="flex justify-between text-xs text-slate-500 mb-2 font-bold"><span>已用: {{ formatBytes(u.traffic_used) }}</span><span>上限: {{ u.traffic_limit > 0 ? formatBytes(u.traffic_limit) : '无限' }}</span></div>
+                            <div class="w-full bg-slate-100 rounded-full h-2.5 mb-3 overflow-hidden shadow-inner"><div :class="(u.traffic_limit > 0 && u.traffic_used >= u.traffic_limit) ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'" class="h-2.5 rounded-full" :style="{ width: getTrafficPercent(u.traffic_used, u.traffic_limit) + '%' }"></div></div>
+                            <button v-if="u.traffic_used > 0" @click="resetUserTraffic(u.username)" class="text-[11px] text-indigo-500 font-bold hover:underline">重置流量</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- 🌟 [Tab] 服务器与节点管理 -->
-                <div v-if="activeTab === 'nodes'" class="space-y-6">
-                    
-                    <!-- 🌟 吸收进化：全局大盘监控卡片 -->
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
-                            <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">SERVERS</div>
-                            <div class="text-3xl font-black text-slate-700">{{ servers.length }} <span class="text-sm text-emerald-500 font-bold ml-1">↑ {{ globalOnline }}</span></div>
-                        </div>
-                        <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
-                            <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">TOTAL TRAFFIC</div>
-                            <div class="text-3xl font-black text-slate-700">{{ formatBytes(globalTraffic) }}</div>
-                        </div>
-                        <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
-                            <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">DOWNLOAD</div>
-                            <div class="text-2xl font-black text-emerald-500 mt-1 truncate">↓ {{ formatBytes(globalSpeedIn) }}/s</div>
-                        </div>
-                        <div class="bg-white/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white shadow-lg shadow-indigo-100/30 text-center">
-                            <div class="text-[10px] text-slate-400 font-bold mb-1 tracking-widest">UPLOAD</div>
-                            <div class="text-2xl font-black text-blue-500 mt-1 truncate">↑ {{ formatBytes(globalSpeedOut) }}/s</div>
-                        </div>
-                    </div>
-
+                <div v-if="activeTab === 'nodes'" class="space-y-8">
                     <div class="bg-white/60 backdrop-blur-xl p-6 md:p-8 rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 flex flex-col md:flex-row gap-4 items-end">
-                        <div class="flex-1"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">服务器别名</label><input v-model="newVps.name" placeholder="例如: 软银专线 01" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
-                        <div class="flex-1"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">公网 IP</label><input v-model="newVps.ip" placeholder="8.8.8.8" class="w-full bg-white/50 border border-white p-3 rounded-2xl font-mono transition hover:bg-white focus:bg-white"></div>
-                        <button @click="addVps" class="bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-black transition-all shadow-lg hover:scale-105 active:scale-95 whitespace-nowrap">接入机器</button>
+                        <div class="flex-1"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">服务器别名</label><input v-model="newVps.name" placeholder="例如: 日本软银 01" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
+                        <div class="flex-1"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">公网 IP</label><input v-model="newVps.ip" placeholder="8.8.8.8" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
+                        <button @click="addVps" class="bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-black transition-all shadow-lg hover:scale-105">接入机器</button>
                     </div>
 
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                        <div v-for="vps in servers" :key="vps.ip" class="bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden transition-all hover:shadow-2xl hover:shadow-indigo-100/40">
+                        <div v-for="vps in servers" :key="vps.ip" class="bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden transition-all hover:shadow-2xl">
                             
                             <div class="p-6 md:p-8 relative">
                                 <div class="flex justify-between items-start mb-4">
@@ -117,34 +110,32 @@
                                         <h3 class="font-black text-2xl text-slate-800 flex items-center gap-2 mb-1">{{ vps.name }}<span :class="isOnline(vps.last_report) ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]'" class="w-3 h-3 rounded-full inline-block"></span></h3>
                                         <p class="text-sm font-mono text-slate-400 font-medium">{{ vps.ip }}</p>
                                     </div>
-                                    <button @click="deleteVps(vps.ip)" class="text-slate-300 hover:text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-xl text-xs font-bold transition-all">彻底移除</button>
+                                    <button @click="deleteVps(vps.ip)" class="text-slate-300 hover:text-rose-500 font-bold transition-all">移除</button>
                                 </div>
                                 
-                                <!-- 🌟 吸收进化：新增 Uptime/Load 监控 -->
-                                <div class="flex justify-between text-xs text-slate-400 font-mono font-bold mb-4 px-1">
-                                    <span>UPTIME: {{ vps.uptime || 'N/A' }}</span>
+                                <div class="flex justify-between text-[10px] text-slate-400 font-mono font-black mb-4 px-1 uppercase tracking-wider">
+                                    <span>UP: {{ vps.uptime || 'N/A' }}</span>
                                     <span>LOAD: {{ vps.load || '0.00' }}</span>
                                 </div>
 
-                                <!-- 🌟 吸收进化：4宫格硬件监控 (新增 Disk & Network Speed) -->
                                 <div class="grid grid-cols-4 gap-2 mb-6">
                                     <div class="bg-white/50 p-3 rounded-2xl border border-white shadow-sm flex flex-col justify-between">
                                         <div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">CPU</div>
                                         <div class="font-black text-lg text-slate-700">{{ vps.cpu || 0 }}%</div>
-                                        <div class="w-full bg-slate-200/50 rounded-full h-1 mt-1"><div class="bg-indigo-400 h-1 rounded-full" :style="{ width: (vps.cpu || 0) + '%' }"></div></div>
+                                        <div class="w-full bg-slate-200/50 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-indigo-400 h-1 rounded-full" :style="{ width: (vps.cpu || 0) + '%' }"></div></div>
                                     </div>
                                     <div class="bg-white/50 p-3 rounded-2xl border border-white shadow-sm flex flex-col justify-between">
-                                        <div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">RAM</div>
+                                        <div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">MEM</div>
                                         <div class="font-black text-lg text-slate-700">{{ vps.mem || 0 }}%</div>
-                                        <div class="w-full bg-slate-200/50 rounded-full h-1 mt-1"><div class="bg-purple-400 h-1 rounded-full" :style="{ width: (vps.mem || 0) + '%' }"></div></div>
+                                        <div class="w-full bg-slate-200/50 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-purple-400 h-1 rounded-full" :style="{ width: (vps.mem || 0) + '%' }"></div></div>
                                     </div>
                                     <div class="bg-white/50 p-3 rounded-2xl border border-white shadow-sm flex flex-col justify-between">
                                         <div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">DISK</div>
                                         <div class="font-black text-lg text-slate-700">{{ vps.disk || 0 }}%</div>
-                                        <div class="w-full bg-slate-200/50 rounded-full h-1 mt-1"><div class="bg-emerald-400 h-1 rounded-full" :style="{ width: (vps.disk || 0) + '%' }"></div></div>
+                                        <div class="w-full bg-slate-200/50 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-emerald-400 h-1 rounded-full" :style="{ width: (vps.disk || 0) + '%' }"></div></div>
                                     </div>
                                     <div class="bg-white/50 p-2 rounded-2xl border border-white shadow-sm flex flex-col justify-center text-center">
-                                        <div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">NETWORK</div>
+                                        <div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">SPEED</div>
                                         <div class="text-[10px] font-black text-emerald-500 truncate">↓ {{ formatBytes(vps.net_in_speed || 0) }}/s</div>
                                         <div class="text-[10px] font-black text-blue-500 truncate mt-0.5">↑ {{ formatBytes(vps.net_out_speed || 0) }}/s</div>
                                     </div>
@@ -158,65 +149,83 @@
 
                             <div class="px-6 md:px-8 pb-4">
                                 <div class="bg-gradient-to-br from-white/80 to-white/40 p-5 rounded-[1.5rem] border border-white shadow-sm">
-                                    <select v-model="newNodeParams[vps.ip].username" class="w-full border-none bg-indigo-50/50 text-indigo-700 font-bold text-sm p-3 rounded-xl outline-none mb-3 cursor-pointer hover:bg-indigo-100/50 transition">
+                                    <select v-model="newNodeParams[vps.ip].username" class="w-full border-none bg-indigo-50/50 text-indigo-700 font-bold text-sm p-3 rounded-xl outline-none mb-3">
                                         <option value="admin">👤 归属权: 管理员自身</option>
                                         <option v-for="u in users" :value="u.username">👤 归属权: {{ u.username }}</option>
                                     </select>
                                     <div class="flex gap-3 mb-3">
-                                        <select v-model="newNodeParams[vps.ip].protocol" class="border-none bg-slate-100/50 text-slate-700 text-sm p-3 rounded-xl flex-1 outline-none font-medium cursor-pointer hover:bg-slate-200/50 transition">
+                                        <select v-model="newNodeParams[vps.ip].protocol" class="border-none bg-slate-100/50 text-slate-700 text-sm p-3 rounded-xl flex-1 outline-none font-medium">
                                             <option value="VLESS">VLESS (通用直连)</option>
                                             <option value="Reality">VLESS Reality (防封锁)</option>
-                                            <option value="Hysteria2">Hysteria 2 (晚高峰抢速)</option>
+                                            <option value="Hysteria2">Hysteria 2 (极速)</option>
                                             <option value="TUIC">TUIC v5 (高并发)</option>
                                             <option value="VLESS-Argo">VLESS Argo (⚡️全自动穿透)</option>
                                             <option value="Socks5">Socks5 (基础代理)</option>
                                             <option value="dokodemo-door">Dokodemo (内部转发)</option>
                                         </select>
-                                        <input v-model="newNodeParams[vps.ip].port" type="number" placeholder="监听端口" class="border-none bg-slate-100/50 text-slate-700 text-sm p-3 rounded-xl w-24 outline-none font-mono focus:bg-white focus:ring-2 focus:ring-indigo-100 transition">
+                                        <input v-model="newNodeParams[vps.ip].port" type="number" placeholder="端口" class="bg-slate-100/50 text-slate-700 text-sm p-3 rounded-xl w-24 outline-none font-mono">
                                     </div>
                                     <div class="grid grid-cols-2 gap-3 mb-3">
-                                        <div class="bg-slate-100/50 p-3 rounded-xl"><label class="block text-[10px] text-slate-400 font-bold mb-1">单节点配额(GB, 0无限)</label><input v-model="newNodeParams[vps.ip].traffic_limit_gb" type="number" class="w-full text-sm bg-transparent outline-none font-bold text-slate-700"></div>
-                                        <div class="bg-slate-100/50 p-3 rounded-xl"><label class="block text-[10px] text-slate-400 font-bold mb-1">节点到期日(留空永久)</label><input v-model="newNodeParams[vps.ip].expire_date" type="date" class="w-full text-sm bg-transparent outline-none font-bold text-slate-700"></div>
+                                        <div class="bg-slate-100/50 p-3 rounded-xl"><label class="block text-[10px] text-slate-400 font-bold mb-1">配额(GB)</label><input v-model="newNodeParams[vps.ip].traffic_limit_gb" type="number" class="w-full text-sm bg-transparent outline-none font-bold text-slate-700"></div>
+                                        <div class="bg-slate-100/50 p-3 rounded-xl"><label class="block text-[10px] text-slate-400 font-bold mb-1">到期日</label><input v-model="newNodeParams[vps.ip].expire_date" type="date" class="w-full text-sm bg-transparent outline-none font-bold text-slate-700"></div>
                                     </div>
-                                    <div v-if="newNodeParams[vps.ip].protocol === 'Reality'" class="bg-slate-100/50 p-3 rounded-xl mb-3"><input v-model="newNodeParams[vps.ip].sni" list="sni-recommend" placeholder="伪装域名: 支持手填或下拉" class="w-full bg-transparent outline-none text-sm font-medium text-slate-700"><datalist id="sni-recommend"><option value="www.apple.com"></option><option value="gateway.icloud.com"></option><option value="itunes.apple.com"></option><option value="www.microsoft.com"></option></datalist></div>
-                                    <div v-if="newNodeParams[vps.ip].protocol === 'TUIC'" class="bg-slate-100/50 p-3 rounded-xl mb-3"><input v-model="newNodeParams[vps.ip].sni" placeholder="SNI 域名 (TUIC 必须填写, 如 www.bing.com)" class="w-full bg-transparent outline-none text-sm font-medium text-slate-700"></div>
-                                    <div v-if="newNodeParams[vps.ip].protocol === 'VLESS-Argo'" class="bg-indigo-50 border border-indigo-100/50 p-4 rounded-xl mb-3"><div class="font-black text-indigo-600 mb-1 flex items-center gap-1">⚡️ Cloudflared 隧道全自动穿透</div><p class="text-[11px] text-indigo-400/80 leading-relaxed font-medium">下发后VPS将静默运行隧道并自动将 <span class="font-mono bg-indigo-100 px-1 rounded text-indigo-500">.trycloudflare.com</span> 域名回传至面板。</p></div>
-                                    <div v-if="newNodeParams[vps.ip].protocol === 'dokodemo-door'" class="bg-slate-100/50 p-4 rounded-xl mb-3"><div class="flex gap-4 font-bold text-xs text-slate-500 mb-3"><label class="cursor-pointer flex items-center gap-1"><input type="radio" v-model="newNodeParams[vps.ip].relay_type" value="external" class="accent-indigo-500"> 公网目标转发</label><label class="cursor-pointer flex items-center gap-1"><input type="radio" v-model="newNodeParams[vps.ip].relay_type" value="internal" class="accent-indigo-500"> 内部节点链式</label></div><div v-if="newNodeParams[vps.ip].relay_type === 'external'" class="flex gap-2"><input v-model="newNodeParams[vps.ip].target_ip" placeholder="目标 IP" class="bg-white p-2 rounded-lg flex-1 outline-none text-sm font-mono shadow-sm"><input v-model="newNodeParams[vps.ip].target_port" placeholder="端口" class="bg-white p-2 rounded-lg w-20 outline-none text-sm font-mono shadow-sm"></div><select v-if="newNodeParams[vps.ip].relay_type === 'internal'" v-model="newNodeParams[vps.ip].target_id" class="bg-white p-2 rounded-lg w-full outline-none text-sm shadow-sm font-medium"><option value="">-- 选择目标节点 --</option><option v-for="n in getAllOtherNodes(vps.ip)" :value="n.id">{{ getVpsName(n.vps_ip) }} - {{ n.protocol }}:{{ n.port }}</option></select></div>
-                                    <button @click="addNode(vps.ip)" class="w-full bg-gradient-to-r from-slate-800 to-black text-white py-3 rounded-xl text-sm font-bold shadow-lg hover:shadow-slate-400/30 hover:scale-[1.02] active:scale-95 transition-all">配置加密下发</button>
+                                    <div v-if="newNodeParams[vps.ip].protocol === 'Reality'" class="bg-slate-100/50 p-3 rounded-xl mb-3"><input v-model="newNodeParams[vps.ip].sni" list="sni-recommend" placeholder="伪装域名: www.apple.com" class="w-full bg-transparent outline-none text-sm font-medium"></div>
+                                    <div v-if="newNodeParams[vps.ip].protocol === 'TUIC'" class="bg-slate-100/50 p-3 rounded-xl mb-3"><input v-model="newNodeParams[vps.ip].sni" placeholder="SNI 域名 (TUIC 必填)" class="w-full bg-transparent outline-none text-sm font-medium"></div>
+                                    <div v-if="newNodeParams[vps.ip].protocol === 'VLESS-Argo'" class="bg-indigo-50 border border-indigo-100/50 p-4 rounded-xl mb-3"><p class="text-[11px] text-indigo-500 font-black">⚡️ Cloudflared 隧道将在后台静默运行并自动抓取回传域名。</p></div>
+                                    <div v-if="newNodeParams[vps.ip].protocol === 'dokodemo-door'" class="bg-slate-100/50 p-4 rounded-xl mb-3"><div class="flex gap-4 text-xs text-slate-500 mb-3"><label><input type="radio" v-model="newNodeParams[vps.ip].relay_type" value="external"> 公网目标</label><label><input type="radio" v-model="newNodeParams[vps.ip].relay_type" value="internal"> 内部链式</label></div><div v-if="newNodeParams[vps.ip].relay_type === 'external'" class="flex gap-2"><input v-model="newNodeParams[vps.ip].target_ip" placeholder="目标 IP" class="bg-white p-2 rounded-lg flex-1 outline-none text-sm"><input v-model="newNodeParams[vps.ip].target_port" placeholder="端口" class="bg-white p-2 rounded-lg w-20 outline-none text-sm"></div><select v-if="newNodeParams[vps.ip].relay_type === 'internal'" v-model="newNodeParams[vps.ip].target_id" class="bg-white p-2 rounded-lg w-full outline-none text-sm"><option value="">-- 选择目标节点 --</option><option v-for="n in getAllOtherNodes(vps.ip)" :value="n.id">{{ getVpsName(n.vps_ip) }} - {{ n.protocol }}:{{ n.port }}</option></select></div>
+                                    <button @click="addNode(vps.ip)" class="w-full bg-gradient-to-r from-slate-800 to-black text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-[1.02]">下发配置</button>
                                 </div>
                             </div>
 
                             <div class="p-6 md:p-8 bg-slate-50/50 border-t border-white flex-1">
-                                <div class="text-xs font-bold text-slate-400 mb-4 tracking-widest px-1">ACTIVE NODES</div>
-                                <div v-for="node in getNodesByIp(vps.ip)" :key="node.id" class="bg-white/80 border border-white p-4 rounded-2xl mb-3 shadow-sm hover:shadow-md transition-shadow group">
+                                <div v-for="node in getNodesByIp(vps.ip)" :key="node.id" class="bg-white/80 border border-white p-4 rounded-2xl mb-3 shadow-sm hover:shadow-md group">
                                     <div class="flex justify-between items-start mb-3">
                                         <div class="flex-1 overflow-hidden pr-2">
-                                            <div class="flex items-center gap-2 mb-1.5"><span class="font-black text-slate-700">{{ node.protocol }} <span class="font-mono text-slate-400 text-xs bg-slate-100 px-1.5 rounded">#{{ node.port }}</span></span><span class="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-md font-bold">👤 {{ node.username }}</span><span v-if="node.enable === 0" class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold">已停用</span></div>
-                                            <div v-if="node.protocol === 'VLESS-Argo'" class="text-[11px] p-1.5 rounded-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-full inline-block" :class="node.sni.includes('等待') ? 'bg-amber-50/80 text-amber-600 animate-pulse font-bold' : 'bg-emerald-50 border border-emerald-100 text-emerald-700 font-mono font-bold'">Argo: {{ node.sni }}</div>
-                                            <div v-if="node.protocol === 'TUIC' || node.protocol === 'Reality' || node.protocol === 'Hysteria2'" class="text-[11px] bg-slate-50 text-slate-500 p-1.5 rounded-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-full font-mono inline-block">SNI: {{ node.sni }}</div>
-                                            <div v-if="node.protocol === 'dokodemo-door'" class="text-[11px] bg-slate-50 text-slate-500 p-1.5 rounded-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-full inline-block">{{ node.relay_type === 'external' ? `转发至: ${node.target_ip}:${node.target_port}` : `链式至内部节点` }}</div>
+                                            <div class="flex items-center gap-2 mb-1.5"><span class="font-black text-slate-700">{{ node.protocol }} <span class="font-mono text-slate-400 text-xs bg-slate-100 px-1.5 rounded">#{{ node.port }}</span></span><span class="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-md font-bold">👤 {{ node.username }}</span></div>
+                                            <div v-if="node.protocol === 'VLESS-Argo'" class="text-[11px] p-1.5 rounded-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-full inline-block" :class="node.sni.includes('等待') ? 'bg-amber-50 text-amber-600 animate-pulse font-bold' : 'bg-emerald-50 border border-emerald-100 text-emerald-700 font-mono font-bold'">Argo: {{ node.sni }}</div>
+                                            <div v-else-if="node.protocol === 'TUIC' || node.protocol === 'Reality' || node.protocol === 'Hysteria2'" class="text-[11px] bg-slate-50 text-slate-500 p-1.5 rounded-lg overflow-hidden text-ellipsis font-mono inline-block">SNI: {{ node.sni }}</div>
                                         </div>
-                                        <div class="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"><button @click="toggleNode(node.id, node.enable === 1 ? 0 : 1)" class="text-[11px] px-2 py-1 rounded-md bg-white border border-slate-200 hover:bg-slate-50 font-bold text-slate-600 shadow-sm">{{ node.enable === 1 ? '停用' : '启用' }}</button><button @click="deleteNode(node.id)" class="text-rose-500 text-[11px] px-2 py-1 bg-white border border-rose-100 rounded-md hover:bg-rose-50 font-bold shadow-sm">删除</button></div>
+                                        <div class="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"><button @click="toggleNode(node.id, node.enable === 1 ? 0 : 1)" class="text-[11px] font-bold text-slate-600">{{ node.enable === 1 ? '停用' : '启用' }}</button><button @click="deleteNode(node.id)" class="text-rose-500 text-[11px] font-bold">删除</button></div>
                                     </div>
-                                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden"><div :class="(node.traffic_limit > 0 && node.traffic_used >= node.traffic_limit) ? 'bg-rose-400' : 'bg-slate-800'" class="h-1.5 rounded-full transition-all duration-500" :style="{ width: getTrafficPercent(node.traffic_used, node.traffic_limit) + '%' }"></div></div>
-                                    <div class="flex justify-between text-[10px] text-slate-400 mt-2 font-medium"><span>已用: {{ formatBytes(node.traffic_used) }} <span v-if="node.traffic_limit > 0">/ {{ formatBytes(node.traffic_limit) }}</span></span><div class="flex gap-3"><span v-if="node.expire_time > 0">到期: {{ formatDate(node.expire_time) }}</span><button v-if="node.traffic_used > 0" @click="resetTraffic(node.id)" class="text-indigo-500 hover:underline font-bold">清零</button></div></div>
+                                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden"><div :class="(node.traffic_limit > 0 && node.traffic_used >= node.traffic_limit) ? 'bg-rose-400' : 'bg-slate-800'" class="h-1.5 rounded-full" :style="{ width: getTrafficPercent(node.traffic_used, node.traffic_limit) + '%' }"></div></div>
+                                    <div class="flex justify-between text-[10px] text-slate-400 mt-2 font-medium"><span>已用: {{ formatBytes(node.traffic_used) }} <span v-if="node.traffic_limit > 0">/ {{ formatBytes(node.traffic_limit) }}</span></span><button v-if="node.traffic_used > 0" @click="resetTraffic(node.id)" class="text-indigo-500 font-bold">清零</button></div>
                                 </div>
-                                <div v-if="getNodesByIp(vps.ip).length === 0" class="text-center text-slate-400 text-xs py-6 border-2 border-dashed border-slate-200 rounded-2xl font-medium">暂无节点配置，请在上方添加</div>
                             </div>
 
                             <div class="p-4 md:p-6 bg-slate-100/50 border-t border-white grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div class="bg-slate-800 p-4 rounded-[1.25rem] cursor-pointer group shadow-inner hover:bg-black transition-colors" @click="copyCommand(generateCmd(vps.ip), '终端部署指令已复制！请前往 VPS 粘贴执行。')"><div class="flex justify-between items-center mb-1.5"><div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Deploy Agent Command</div><div class="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition">Click to copy</div></div><div class="text-emerald-400 font-mono text-xs truncate">bash <(curl -sL ...</div></div>
-                                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-[1.25rem] cursor-pointer hover:from-indigo-600 hover:to-purple-700 transition flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200/50 hover:scale-[1.02] active:scale-95" @click="copyCommand(generateSubLink(vps.ip), '单机节点订阅链接已复制！')">复制该机专属订阅</div>
+                                <div class="bg-slate-800 p-4 rounded-[1.25rem] cursor-pointer group shadow-inner hover:bg-black transition-colors" @click="copyCommand(generateCmd(vps.ip), '部署指令已复制！')">
+                                    <div class="text-[10px] text-slate-400 font-bold uppercase mb-1.5">Deploy Agent Command</div>
+                                    <div class="text-emerald-400 font-mono text-xs truncate">bash <(curl -sL ...</div>
+                                </div>
+                                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-[1.25rem] cursor-pointer transition flex items-center justify-center text-white font-bold shadow-lg hover:scale-[1.02] active:scale-95" @click="copyCommand(generateSubLink(vps.ip), '单机节点订阅已复制！')">复制该机专属订阅</div>
                             </div>
+
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 普通用户专属控制台 -->
             <div v-if="role === 'user'" class="space-y-8 animate-fade-in">
-                <div class="bg-white/60 backdrop-blur-xl p-10 md:p-16 rounded-[3rem] shadow-2xl shadow-indigo-100/40 border border-white text-center relative overflow-hidden"><div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-32 bg-indigo-400/20 blur-3xl rounded-full pointer-events-none"></div><h2 class="text-4xl md:text-5xl font-black mb-3 text-slate-800 relative z-10">Hi, {{ currentUser }} <span class="inline-block hover:animate-bounce cursor-default">👋</span></h2><p class="text-slate-500 mb-10 font-medium relative z-10">欢迎来到您的专属高速网络服务中心</p><div class="max-w-md mx-auto bg-white/80 p-8 rounded-[2rem] border border-white shadow-xl shadow-slate-200/50 mb-10 relative z-10"><div class="flex justify-between text-sm font-black text-slate-700 mb-3"><span>已用流量: {{ formatBytes(users[0]?.traffic_used || 0) }}</span><span class="text-indigo-600">总量: {{ users[0]?.traffic_limit > 0 ? formatBytes(users[0].traffic_limit) : '无限制' }}</span></div><div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner mb-4"><div :class="users[0]?.traffic_used >= users[0]?.traffic_limit && users[0]?.traffic_limit > 0 ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'" class="h-3 transition-all duration-1000 rounded-full" :style="{ width: getTrafficPercent(users[0]?.traffic_used||0, users[0]?.traffic_limit||0) + '%' }"></div></div><div class="flex justify-between mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 font-medium"><span>账户状态: <span :class="users[0]?.enable === 1 ? 'text-emerald-500 font-bold bg-emerald-50 px-2 py-1 rounded-md' : 'text-rose-500 font-bold bg-rose-50 px-2 py-1 rounded-md'">{{ users[0]?.enable === 1 ? '🟢 正常运行' : '🔴 已被封禁' }}</span></span><span>到期时间: <span class="font-bold text-slate-700">{{ formatDate(users[0]?.expire_time) }}</span></span></div></div><button @click="copyCommand(generateSubLink(''), '全量聚合链接已复制！请前往客户端导入。')" class="relative z-10 bg-gradient-to-r from-slate-800 to-black hover:from-black hover:to-slate-800 text-white font-black py-4 px-12 rounded-full shadow-2xl shadow-slate-400/40 transition-all transform hover:scale-105 active:scale-95 text-lg">🔗 一键复制我的专属订阅</button></div>
-                <div><h3 class="font-black text-xl mb-6 text-slate-700 px-4 flex items-center gap-2">📍 我已开通的节点列表</h3><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div v-for="node in nodes" :key="node.id" class="bg-white/70 backdrop-blur-xl p-6 rounded-[2rem] border border-white shadow-lg shadow-slate-200/40 hover:shadow-indigo-100/60 transition-all hover:-translate-y-1"><div class="font-black text-xl mb-4 text-slate-800">{{ getVpsName(node.vps_ip) }}</div><div class="flex justify-between items-center mt-auto"><span class="font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl text-xs">{{ node.protocol }}</span><span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl">PORT: {{ node.port }}</span></div></div></div></div>
+                <div class="bg-white/60 backdrop-blur-xl p-10 md:p-16 rounded-[3rem] shadow-2xl border border-white text-center relative overflow-hidden">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-32 bg-indigo-400/20 blur-3xl rounded-full pointer-events-none"></div>
+                    <h2 class="text-4xl md:text-5xl font-black mb-3 text-slate-800 relative z-10">Hi, {{ currentUser }} 👋</h2>
+                    <p class="text-slate-500 mb-10 font-medium relative z-10">欢迎来到您的专属网络服务中心</p>
+                    <div class="max-w-md mx-auto bg-white/80 p-8 rounded-[2rem] border border-white shadow-xl shadow-slate-200/50 mb-10 relative z-10">
+                        <div class="flex justify-between text-sm font-black text-slate-700 mb-3"><span>已用流量: {{ formatBytes(users[0]?.traffic_used || 0) }}</span><span class="text-indigo-600">总量: {{ users[0]?.traffic_limit > 0 ? formatBytes(users[0].traffic_limit) : '无限制' }}</span></div>
+                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner mb-4"><div :class="users[0]?.traffic_used >= users[0]?.traffic_limit && users[0]?.traffic_limit > 0 ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'" class="h-3 transition-all duration-1000 rounded-full" :style="{ width: getTrafficPercent(users[0]?.traffic_used||0, users[0]?.traffic_limit||0) + '%' }"></div></div>
+                        <div class="flex justify-between mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 font-medium"><span>账户状态: <span :class="users[0]?.enable === 1 ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'">{{ users[0]?.enable === 1 ? '🟢 正常运行' : '🔴 已被封禁' }}</span></span><span>到期时间: <span class="font-bold text-slate-700">{{ formatDate(users[0]?.expire_time) }}</span></span></div>
+                    </div>
+                    <button @click="copyCommand(generateSubLink(''), '聚合链接已复制！')" class="relative z-10 bg-gradient-to-r from-slate-800 to-black text-white font-black py-4 px-12 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 text-lg">🔗 一键复制我的专属订阅</button>
+                </div>
+                <div>
+                    <h3 class="font-black text-xl mb-6 text-slate-700 px-4">📍 我已开通的节点</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="node in nodes" :key="node.id" class="bg-white/70 backdrop-blur-xl p-6 rounded-[2rem] border border-white shadow-lg transition-all hover:-translate-y-1">
+                            <div class="font-black text-xl mb-4 text-slate-800">{{ getVpsName(node.vps_ip) }}</div>
+                            <div class="flex justify-between items-center"><span class="font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl text-xs">{{ node.protocol }}</span><span class="text-xs font-mono font-bold text-slate-500">PORT: {{ node.port }}</span></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -224,6 +233,7 @@
 
     <script>
         const { createApp, ref, reactive, onMounted, onUnmounted, nextTick, computed } = Vue;
+        
         const sha256 = async (text) => { const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)); return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join(''); };
         const generateHMAC = async (keyHex, message) => { const keyBytes = new Uint8Array(keyHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message)); return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join(''); };
         const toBase64Url = (uint8Array) => { let str = ''; for (let i = 0; i < uint8Array.length; i++) str += String.fromCharCode(uint8Array[i]); return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''); };
@@ -242,11 +252,11 @@
                 const formatDate = (ts) => { if (!ts) return '永久'; const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
                 const getTrafficPercent = (used, limit) => { if (!limit || limit === 0) return 0; return Math.min((used / limit) * 100, 100); };
 
-                // 🌟 Vue Computed 属性：计算全局大盘状态
+                // 🌟 计算全局数据
                 const globalOnline = computed(() => servers.value.filter(s => isOnline(s.last_report)).length);
+                const globalTraffic = computed(() => nodes.value.reduce((sum, n) => sum + (parseFloat(n.traffic_used) || 0), 0));
                 const globalSpeedIn = computed(() => servers.value.reduce((sum, s) => sum + (parseFloat(s.net_in_speed) || 0), 0));
                 const globalSpeedOut = computed(() => servers.value.reduce((sum, s) => sum + (parseFloat(s.net_out_speed) || 0), 0));
-                const globalTraffic = computed(() => nodes.value.reduce((sum, n) => sum + (parseFloat(n.traffic_used) || 0), 0));
 
                 const fetchApi = async (url, options = {}) => {
                     const timestamp = Date.now().toString(); const signature = await generateHMAC(authKey.value, currentUser.value + timestamp);
@@ -267,7 +277,7 @@
                             localStorage.setItem('kui_auth_key', authKey.value); localStorage.setItem('kui_user', currentUser.value); localStorage.setItem('kui_role', role.value);
                             isLoggedIn.value = true; password.value = ''; refreshData(); startPolling();
                         } else alert('⚠️ 账户名或密码错误');
-                    } catch (e) { alert('登录异常，请检查网络环境'); }
+                    } catch (e) { alert('登录异常'); }
                 };
                 const logout = () => { localStorage.removeItem('kui_auth_key'); localStorage.removeItem('kui_user'); localStorage.removeItem('kui_role'); isLoggedIn.value = false; currentUser.value = ''; authKey.value = ''; stopPolling(); };
 
@@ -275,7 +285,9 @@
                     try {
                         const res = await fetchApi('/api/data'); const data = await res.json();
                         servers.value = data.servers || []; nodes.value = data.nodes || []; users.value = data.users || [];
-                        servers.value.forEach(s => { if(!newNodeParams[s.ip]) newNodeParams[s.ip] = { protocol: 'Reality', port: 443, username: 'admin', sni: '', relay_type: 'external', traffic_limit_gb: '', expire_date: '' }; });
+                        servers.value.forEach(s => { 
+                            if(!newNodeParams[s.ip]) newNodeParams[s.ip] = { protocol: 'Reality', port: 443, username: 'admin', sni: '', relay_type: 'external', traffic_limit_gb: '', expire_date: '' }; 
+                        });
                         renderCharts();
                     } catch(e) {}
                 };
@@ -293,19 +305,19 @@
 
                 const addUser = async () => { const limit = newUser.traffic_limit_gb ? Math.floor(parseFloat(newUser.traffic_limit_gb) * 1073741824) : 0; const expire = newUser.expire_date ? new Date(newUser.expire_date).getTime() : 0; await fetchApi('/api/users', { method: 'POST', body: JSON.stringify({ ...newUser, traffic_limit: limit, expire_time: expire }) }); Object.assign(newUser, { username: '', password: '', traffic_limit_gb: '', expire_date: '' }); refreshData(); };
                 const toggleUser = async (username, status) => { await fetchApi('/api/users', { method: 'PUT', body: JSON.stringify({ username, enable: status }) }); refreshData(); };
-                const deleteUser = async (username) => { if(confirm('⚠️ 删除用户后节点归管理员所有。是否确定？')) { await fetchApi(`/api/users?username=${username}`, { method: 'DELETE' }); refreshData(); } };
+                const deleteUser = async (username) => { if(confirm('⚠️ 确定删除用户？')) { await fetchApi(`/api/users?username=${username}`, { method: 'DELETE' }); refreshData(); } };
                 const resetUserTraffic = async (username) => { await fetchApi('/api/users', { method: 'PUT', body: JSON.stringify({ username, reset_traffic: true }) }); refreshData(); };
 
                 const addVps = async () => { await fetchApi('/api/vps', { method: 'POST', body: JSON.stringify(newVps.value) }); newVps.value = { name: '', ip: '' }; refreshData(); };
-                const deleteVps = async (ip) => { if(confirm('🧨 确定要彻底移除该机器及所有记录吗？')) { await fetchApi(`/api/vps?ip=${ip}`, { method: 'DELETE' }); refreshData(); } };
+                const deleteVps = async (ip) => { if(confirm('🧨 确定移除该机器？')) { await fetchApi(`/api/vps?ip=${ip}`, { method: 'DELETE' }); refreshData(); } };
                 
                 const addNode = async (ip) => {
-                    const p = newNodeParams[ip]; if(!p.port) return alert('请填写有效端口!');
+                    const p = newNodeParams[ip]; if(!p.port) return alert('请填写端口!');
                     let limitBytes = p.traffic_limit_gb ? Math.floor(parseFloat(p.traffic_limit_gb) * 1073741824) : 0; let expireTs = p.expire_date ? new Date(p.expire_date).getTime() : 0;
                     const payload = { id: Date.now().toString(), uuid: crypto.randomUUID(), vps_ip: ip, protocol: p.protocol, port: p.port, username: p.username, traffic_limit: limitBytes, expire_time: expireTs };
                     if (p.protocol === 'Reality') { const keys = generateRealityKeys(); payload.sni = p.sni || 'www.apple.com'; payload.private_key = keys.privateKey; payload.public_key = keys.publicKey; payload.short_id = keys.shortId; } 
                     else if (p.protocol === 'Hysteria2') { payload.sni = p.sni || 'www.apple.com'; }
-                    else if (p.protocol === 'TUIC') { if (!p.sni) return alert('TUIC 必须填 SNI！'); payload.sni = p.sni; payload.private_key = crypto.randomUUID(); }
+                    else if (p.protocol === 'TUIC') { if (!p.sni) return alert('TUIC 必填 SNI！'); payload.sni = p.sni; payload.private_key = crypto.randomUUID(); }
                     else if (p.protocol === 'VLESS-Argo') { payload.sni = '⏳ 正在等待 VPS 自动回传穿透域名...'; }
                     else if (p.protocol === 'Socks5') { payload.uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 8); payload.private_key = crypto.randomUUID().replace(/-/g, '').substring(0, 12); }
                     else if (p.protocol === 'dokodemo-door') { payload.relay_type = p.relay_type; if (p.relay_type === 'external') { payload.target_ip = p.target_ip; payload.target_port = p.target_port; } else { payload.target_id = p.target_id; } }
@@ -323,14 +335,13 @@
                 let timer = null;
                 const startPolling = () => { if (!timer) timer = setInterval(() => { if (isLoggedIn.value) refreshData(); }, 30000); };
                 const stopPolling = () => { if (timer) clearInterval(timer); timer = null; };
-                const handleVisibility = () => { if (document.hidden) stopPolling(); else if (isLoggedIn.value) { refreshData(); startPolling(); } };
                 
                 const generateCmd = (ip) => `apt-get update -y && apt-get install -y curl && bash <(curl -sL https://raw.githubusercontent.com/a62169722/KUI/main/vps/kui.sh) --api "${currentDomain}" --ip "${ip}" --token "${authKey.value}"`;
                 const generateSubLink = (ip='') => `${currentDomain}/api/sub?user=${currentUser.value}&token=${authKey.value}${ip?`&ip=${ip}`:''}`;
                 const copyCommand = (txt, msg) => navigator.clipboard.writeText(txt).then(() => alert(msg));
 
-                onMounted(() => { if (authKey.value && currentUser.value) { isLoggedIn.value = true; refreshData(); startPolling(); } document.addEventListener('visibilitychange', handleVisibility); });
-                return { isLoggedIn, loginUser, password, currentUser, role, activeTab, servers, nodes, users, newVps, newNodeParams, newUser, login, logout, refreshData, addUser, toggleUser, deleteUser, resetUserTraffic, addVps, deleteVps, addNode, deleteNode, toggleNode, resetTraffic, getNodesByIp, getVpsName, getAllOtherNodes, formatBytes, formatDate, getTrafficPercent, isOnline, generateCmd, generateSubLink, copyCommand, globalOnline, globalSpeedIn, globalSpeedOut, globalTraffic };
+                onMounted(() => { if (authKey.value && currentUser.value) { isLoggedIn.value = true; refreshData(); startPolling(); } document.addEventListener('visibilitychange', () => { if (document.hidden) stopPolling(); else if (isLoggedIn.value) { refreshData(); startPolling(); } }); });
+                return { isLoggedIn, loginUser, password, currentUser, role, activeTab, servers, nodes, users, newVps, newNodeParams, newUser, login, logout, refreshData, addUser, toggleUser, deleteUser, resetUserTraffic, addVps, deleteVps, addNode, deleteNode, toggleNode, resetTraffic, getNodesByIp, getVpsName, getAllOtherNodes, formatBytes, formatDate, getTrafficPercent, isOnline, generateCmd, generateSubLink, copyCommand, globalOnline, globalTraffic, globalSpeedIn, globalSpeedOut };
             }
         }).mount('#app');
     </script>
