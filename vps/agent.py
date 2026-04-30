@@ -293,16 +293,11 @@ def build_singbox_config(nodes):
         elif proto in ["Hysteria2", "TUIC"]:
             cert_path = f"/opt/kui/cert_{node['id']}.pem"
             key_path = f"/opt/kui/key_{node['id']}.pem"
-            
-            # 🌟 修复：强制拦截前端传来的空字符串 ""，并提供有效兜底
-            sni = node.get("sni")
-            if not sni:
-                sni = "www.apple.com"
+            sni = node.get("sni", "www.apple.com")
             
             active_certs.extend([f"cert_{node['id']}.pem", f"key_{node['id']}.pem"])
 
             if not os.path.exists(cert_path) or not os.path.exists(key_path):
-                # 🌟 修复：改为纯 POSIX 语法的 OpenSSL 命令，摒弃 bash 独有的 <() 语法，完美兼容 Alpine
                 cmd = f'openssl ecparam -genkey -name prime256v1 -out {key_path} && openssl req -new -x509 -nodes -days 3650 -key {key_path} -out {cert_path} -subj "/O=GlobalSign/CN={sni}" 2>/dev/null'
                 subprocess.run(cmd, shell=True)
                 subprocess.run(["chmod", "644", cert_path, key_path])
@@ -370,7 +365,6 @@ def build_singbox_config(nodes):
             subprocess.run(["rc-service", "sing-box", "restart"])
         else:
             subprocess.run(["systemctl", "restart", "sing-box"])
-
 
 # ===============================================
 # 主循环守护进程
