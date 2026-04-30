@@ -34,10 +34,8 @@
         <!-- ================= 面板主界面 ================= -->
         <div v-else class="space-y-8 animate-fade-in">
             
-            <!-- 🌟 重新布局：完美分离左右侧，绝对不会遮挡 -->
             <div class="bg-white/70 backdrop-blur-xl border border-white/80 p-4 md:px-6 rounded-[2rem] shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row justify-between items-center sticky top-4 z-50 gap-4">
                 
-                <!-- 左侧区域：Logo + 外链 -->
                 <div class="flex flex-wrap justify-center lg:justify-start items-center gap-3 md:gap-4 w-full lg:w-auto">
                     <h1 class="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 shrink-0">
                         <template v-if="siteTitle && siteTitle !== 'Cluster Gateway'">{{ siteTitle }}</template>
@@ -54,7 +52,6 @@
                     </a>
                 </div>
                 
-                <!-- 右侧区域：操作按钮 -->
                 <div class="flex flex-wrap justify-center lg:justify-end items-center gap-2 w-full lg:w-auto">
                     <span class="text-[10px] md:text-xs font-bold text-emerald-500 bg-emerald-100/50 px-3 py-2 rounded-full border border-emerald-200 animate-pulse">🟢 实时监控中</span>
                     <button v-if="role === 'admin'" @click="copyCommand(generateSubLink(''), '全量聚合订阅已复制！')" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-md hover:scale-105 active:scale-95 transition-all">🔗 复制订阅</button>
@@ -561,7 +558,10 @@
                         if (!p.sni) return alert('TUIC 必填 SNI！'); 
                         payload.private_key = crypto.randomUUID().replace(/-/g, ''); 
                     } else if (p.protocol === 'ShadowTLS' || p.protocol === 'Shadowsocks' || p.protocol === 'Trojan' || p.protocol === 'AnyTLS') {
-                        payload.private_key = crypto.randomUUID().replace(/-/g, ''); // 密码字段复用
+                        // 🌟 修复：手动下发也应用 16 字节 Base64 密码以兼容 2022-blake3-aes-128-gcm
+                        const array = new Uint8Array(16);
+                        crypto.getRandomValues(array);
+                        payload.private_key = btoa(String.fromCharCode.apply(null, array));
                     } else if (p.protocol === 'Naive') {
                         payload.uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 16); // User
                         payload.private_key = payload.uuid; // Pass
@@ -637,8 +637,10 @@
                             payload.uuid = commonUUID.replace(/-/g, '').substring(0, 16); 
                             payload.private_key = payload.uuid;
                         } else {
-                            // 给 TUIC, ShadowTLS, SS, Trojan, AnyTLS 提供高强度密码复用
-                            payload.private_key = crypto.randomUUID().replace(/-/g, ''); 
+                            // 🌟 修复: 严格生成 16 字节(Base64)密码，完美兼容 2022-blake3-aes-128-gcm 等协议
+                            const array = new Uint8Array(16);
+                            crypto.getRandomValues(array);
+                            payload.private_key = btoa(String.fromCharCode.apply(null, array));
                         }
                         
                         try {
