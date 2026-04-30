@@ -1,6 +1,6 @@
 // ==========================================
 // KUI Serverless 聚合网关后端 - 终极完整版
-// (包含：自动建表 + 12大协议订阅生成 + 智能心跳引擎 + TG告警)
+// (包含：自动建表 + 极速9合1协议生成 + 智能心跳引擎 + TG告警)
 // ==========================================
 
 async function sha256(text) {
@@ -261,7 +261,7 @@ export async function onRequest(context) {
         return Response.json({ success: true, configs: machineNodes });
     }
 
-    // 🌟 全量聚合订阅接口 (完美支持 FSCARMEN 12大协议矩阵)
+    // 🌟 聚合订阅接口
     if (action === "sub" && method === "GET") {
         const ip = url.searchParams.get("ip");
         const reqUser = url.searchParams.get("user");
@@ -309,9 +309,6 @@ export async function onRequest(context) {
 
         const { results } = await db.prepare(query).bind(...sqlParams).all();
         let subLinks = [];
-        
-        // 🌟 定义 WS 节点自动套用的优选 CDN
-        const defaultCdn = "bestcf.top";
 
         for (let node of results) {
             const vpsInfo = await db.prepare("SELECT name FROM servers WHERE ip = ?").bind(node.vps_ip).first();
@@ -319,8 +316,8 @@ export async function onRequest(context) {
             const remark = encodeURIComponent(rawRemark);
             
             let link = "";
-            const cleanUuid = node.uuid.replace(/-/g, '');
 
+            // 已剔除 SS2022, VMess-WS, VLESS-WS-TLS
             switch (node.protocol) {
                 case "VLESS":
                     link = `vless://${node.uuid}@${node.vps_ip}:${node.port}?encryption=none&security=none&type=tcp#${remark}`;
@@ -336,23 +333,11 @@ export async function onRequest(context) {
                     link = `tuic://${node.uuid}:${node.private_key}@${node.vps_ip}:${node.port}?sni=${node.sni}&congestion_control=bbr&alpn=h3&allow_insecure=1#${remark}`;
                     break;
                 case "ShadowTLS":
-                case "Shadowsocks":
                     const ssAuth = btoa(`2022-blake3-aes-128-gcm:${node.private_key}`);
                     link = `ss://${ssAuth}@${node.vps_ip}:${node.port}#${remark}`;
                     break;
                 case "Trojan":
                     link = `trojan://${node.private_key}@${node.vps_ip}:${node.port}?security=tls&sni=${node.sni}&allowInsecure=1&type=tcp#${remark}`;
-                    break;
-                case "VMess-WS":
-                    const vmessObj = { 
-                        v: "2", ps: rawRemark, add: defaultCdn, port: String(node.port), 
-                        id: node.uuid, aid: "0", scy: "none", net: "ws", type: "none", 
-                        host: node.sni || node.vps_ip, path: "/" + cleanUuid + "-vmess", tls: "" 
-                    };
-                    link = `vmess://${btoa(JSON.stringify(vmessObj))}`;
-                    break;
-                case "VLESS-WS-TLS":
-                    link = `vless://${node.uuid}@${defaultCdn}:${node.port}?encryption=none&security=tls&sni=${node.sni}&type=ws&host=${node.sni}&path=%2F${cleanUuid}-vless%3Fed%3D2560#${remark}`;
                     break;
                 case "H2-Reality":
                     link = `vless://${node.uuid}@${node.vps_ip}:${node.port}?encryption=none&security=reality&sni=${node.sni}&fp=chrome&pbk=${node.public_key}&sid=${node.short_id || ""}&type=http#${remark}`;
