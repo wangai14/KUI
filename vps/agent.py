@@ -33,7 +33,7 @@ argo_tunnels = {}
 prev_cpu_total = prev_cpu_idle = prev_rx = prev_tx = 0
 
 # ===============================================
-# 🚀 融合 fscarmen 脚本：全系防火墙智能击穿
+# 🚀 防火墙无死角智能击穿
 # ===============================================
 def ensure_firewall_open(port):
     port = str(port)
@@ -152,7 +152,7 @@ def process_argo_nodes(configs):
     return argo_urls
 
 # ===============================================
-# 🚀 融合 fscarmen 脚本：Sing-box 全协议标准生成
+# 🚀 满血版：支持 FSCARMEN 12大核心协议的 Sing-box 编译引擎
 # ===============================================
 def build_singbox_config(nodes):
     singbox_config = {
@@ -165,82 +165,114 @@ def build_singbox_config(nodes):
 
     for node in nodes:
         in_tag, proto, port = f"in-{node['id']}", node["protocol"], int(node["port"])
+        sni = node.get("sni") or "addons.mozilla.org"
+        clean_uuid = node['uuid'].replace('-', '')
         
-        if proto == "VLESS":
-            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"]}]})
-            
-        elif proto == "Reality":
-            singbox_config["inbounds"].append({
-                "type": "vless", "tag": in_tag, "listen": "::", "listen_port": port,
-                "users": [{"uuid": node["uuid"], "flow": "xtls-rprx-vision"}],
-                "tls": {
-                    "enabled": True, "server_name": node["sni"],
-                    "reality": {"enabled": True, "handshake": {"server": node["sni"], "server_port": 443}, "private_key": node["private_key"], "short_id": [node["short_id"]]}
-                }
-            })
-
-        elif proto in ["Hysteria2", "TUIC"]:
+        # 针对需要 TLS 的协议生成证书
+        if proto in ["Hysteria2", "TUIC", "Trojan", "VLESS-WS-TLS", "AnyTLS", "Naive"]:
             cert_path, key_path = f"/opt/kui/cert_{node['id']}.pem", f"/opt/kui/key_{node['id']}.pem"
-            
-            # 🚀 完全复刻 fscarmen 的默认域
-            sni = node.get("sni")
-            if not sni:
-                sni = "addons.mozilla.org"
-                
             active_certs.extend([f"cert_{node['id']}.pem", f"key_{node['id']}.pem"])
-
+            
             if not os.path.exists(cert_path):
-                # 🚀 完全复刻 fscarmen ssl_certificate 核心：注入 SAN 扩展，防现代客户端握手失败
                 parts = sni.split('.')
                 cn = f"{parts[-2]}.{parts[-1]}" if len(parts) >= 2 else sni
                 conf_path = f"/opt/kui/cert_{node['id']}.conf"
-                
-                conf_content = f"""[req]
-distinguished_name = req_distinguished_name
-x509_extensions = v3_req
-prompt = no
-
-[req_distinguished_name]
-CN = {cn}
-
-[v3_req]
-subjectAltName = @alt_names
-
-[alt_names]
-DNS = {sni}
-"""
-                with open(conf_path, "w") as f:
-                    f.write(conf_content)
-                
+                conf_content = f"[req]\ndistinguished_name = req_distinguished_name\nx509_extensions = v3_req\nprompt = no\n[req_distinguished_name]\nCN = {cn}\n[v3_req]\nsubjectAltName = @alt_names\n[alt_names]\nDNS = {sni}\n"
+                with open(conf_path, "w") as f: f.write(conf_content)
                 os.system(f"openssl ecparam -genkey -name prime256v1 -out {key_path} >/dev/null 2>&1")
                 os.system(f"openssl req -new -x509 -days 36500 -key {key_path} -out {cert_path} -config {conf_path} -extensions v3_req >/dev/null 2>&1")
                 os.system(f"chmod 644 {cert_path} {key_path}")
                 try: os.remove(conf_path)
-                except Exception: pass
-
-            if proto == "Hysteria2":
-                singbox_config["inbounds"].append({"type": "hysteria2", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"password": node["uuid"]}], "tls": {"enabled": True, "alpn": ["h3"], "certificate_path": cert_path, "key_path": key_path}})
-            elif proto == "TUIC":
-                singbox_config["inbounds"].append({"type": "tuic", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"], "password": node["private_key"]}], "tls": {"enabled": True, "alpn": ["h3"], "certificate_path": cert_path, "key_path": key_path}})
-
-        elif proto == "VLESS-Argo":
-            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "127.0.0.1", "listen_port": port, "users": [{"uuid": node["uuid"]}], "transport": {"type": "ws", "path": "/"}})
+                except: pass
+        
+        # 1. VLESS (基础直连)
+        if proto == "VLESS":
+            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"]}]})
+        
+        # 2. XTLS-Reality / Reality
+        elif proto in ["XTLS-Reality", "Reality"]:
+            singbox_config["inbounds"].append({
+                "type": "vless", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"], "flow": "xtls-rprx-vision"}],
+                "tls": {"enabled": True, "server_name": sni, "reality": {"enabled": True, "handshake": {"server": sni, "server_port": 443}, "private_key": node["private_key"], "short_id": [node["short_id"]]}}
+            })
+        
+        # 3. Hysteria2
+        elif proto == "Hysteria2":
+            singbox_config["inbounds"].append({"type": "hysteria2", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"password": node["uuid"]}], "tls": {"enabled": True, "alpn": ["h3"], "certificate_path": cert_path, "key_path": key_path}})
+        
+        # 4. TUIC
+        elif proto == "TUIC":
+            singbox_config["inbounds"].append({"type": "tuic", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"], "password": node["private_key"]}], "tls": {"enabled": True, "alpn": ["h3"], "certificate_path": cert_path, "key_path": key_path}})
+        
+        # 5. ShadowTLS (复合协议)
+        elif proto == "ShadowTLS":
+            singbox_config["inbounds"].extend([
+                {"type": "shadowtls", "tag": in_tag, "listen": "::", "listen_port": port, "version": 3, "users": [{"password": node["private_key"]}], "handshake": {"server": sni, "server_port": 443}, "strict_mode": True, "detour": f"ss-in-{node['id']}"},
+                {"type": "shadowsocks", "tag": f"ss-in-{node['id']}", "listen": "127.0.0.1", "network": "tcp", "method": "2022-blake3-aes-128-gcm", "password": node["private_key"]}
+            ])
+        
+        # 6. Shadowsocks (2022)
+        elif proto == "Shadowsocks":
+            singbox_config["inbounds"].append({"type": "shadowsocks", "tag": in_tag, "listen": "::", "listen_port": port, "method": "2022-blake3-aes-128-gcm", "password": node["private_key"]})
             
+        # 7. Trojan
+        elif proto == "Trojan":
+            singbox_config["inbounds"].append({"type": "trojan", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"password": node["private_key"]}], "tls": {"enabled": True, "server_name": sni, "certificate_path": cert_path, "key_path": key_path}})
+            
+        # 8. VMess-WS
+        elif proto == "VMess-WS":
+            path = f"/{clean_uuid}-vmess"
+            singbox_config["inbounds"].append({"type": "vmess", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"], "alterId": 0}], "transport": {"type": "ws", "path": path, "headers": {"Host": sni}}})
+            
+        # 9. VLESS-WS-TLS
+        elif proto == "VLESS-WS-TLS":
+            path = f"/{clean_uuid}-vless"
+            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"]}], "tls": {"enabled": True, "server_name": sni, "certificate_path": cert_path, "key_path": key_path}, "transport": {"type": "ws", "path": path, "headers": {"Host": sni}}})
+            
+        # 10. H2-Reality
+        elif proto == "H2-Reality":
+            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"]}], "tls": {"enabled": True, "server_name": sni, "reality": {"enabled": True, "handshake": {"server": sni, "server_port": 443}, "private_key": node["private_key"], "short_id": [node["short_id"]]}}, "transport": {"type": "http"}})
+            
+        # 11. gRPC-Reality
+        elif proto == "gRPC-Reality":
+            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"uuid": node["uuid"]}], "tls": {"enabled": True, "server_name": sni, "reality": {"enabled": True, "handshake": {"server": sni, "server_port": 443}, "private_key": node["private_key"], "short_id": [node["short_id"]]}}, "transport": {"type": "grpc", "service_name": "grpc"}})
+            
+        # 12. AnyTLS
+        elif proto == "AnyTLS":
+            singbox_config["inbounds"].append({"type": "anytls", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"password": node["private_key"]}], "tls": {"enabled": True, "certificate_path": cert_path, "key_path": key_path}})
+            
+        # 13. Naive
+        elif proto == "Naive":
+            singbox_config["inbounds"].append({"type": "naive", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"username": node["uuid"], "password": node["private_key"]}], "tls": {"enabled": True, "certificate_path": cert_path, "key_path": key_path}})
+
+        # 14. Socks5
         elif proto == "Socks5":
             singbox_config["inbounds"].append({"type": "socks", "tag": in_tag, "listen": "::", "listen_port": port, "users": [{"username": node["uuid"], "password": node["private_key"]}]})
+
+        # 15. VLESS-Argo (专属通道)
+        elif proto == "VLESS-Argo":
+            singbox_config["inbounds"].append({"type": "vless", "tag": in_tag, "listen": "127.0.0.1", "listen_port": port, "users": [{"uuid": node["uuid"]}], "transport": {"type": "ws", "path": "/"}})
         
+        # 16. Dokodemo (内网穿透与链式转发)
         elif proto == "dokodemo-door":
             singbox_config["inbounds"].append({ "type": "direct", "tag": in_tag, "listen": "::", "listen_port": port })
             out_tag = f"out-{node['id']}"
             if node.get("relay_type") == "internal" and node.get("chain_target"):
                 t = node["chain_target"]
                 outbound = { "type": t["protocol"].lower(), "tag": out_tag, "server": t["ip"], "server_port": int(t["port"]), "uuid": t["uuid"] }
-                if t["protocol"] == "Reality":
+                if t["protocol"] == "Reality" or t["protocol"] == "XTLS-Reality":
                     outbound["tls"] = { "enabled": True, "server_name": t["sni"], "reality": { "enabled": True, "public_key": t["public_key"], "short_id": t["short_id"] } }
                 singbox_config["outbounds"].append(outbound)
             else:
                 singbox_config["outbounds"].append({ "type": "direct", "tag": out_tag, "override_address": node["target_ip"], "override_port": int(node["target_port"]) })
             singbox_config["route"]["rules"].append({ "inbound": [in_tag], "outbound": out_tag })
+
+    # 证书清理守护
+    try:
+        for filename in os.listdir("/opt/kui/"):
+            if (filename.startswith("cert_") or filename.startswith("key_")) and filename.endswith(".pem"):
+                if filename not in active_certs: os.remove(os.path.join("/opt/kui/", filename))
+    except Exception: pass
 
     new_config_str = json.dumps(singbox_config, indent=2)
     old_config_str = ""
@@ -249,11 +281,8 @@ DNS = {sni}
 
     if new_config_str != old_config_str:
         with open(SINGBOX_CONF_PATH, "w") as f: f.write(new_config_str)
-        # 智能重启机制兼容
-        if os.path.exists("/sbin/openrc-run") or os.path.exists("/etc/alpine-release"):
-            os.system("rc-service sing-box restart >/dev/null 2>&1")
-        else:
-            os.system("systemctl restart sing-box >/dev/null 2>&1")
+        if os.path.exists("/sbin/openrc-run") or os.path.exists("/etc/alpine-release"): os.system("rc-service sing-box restart >/dev/null 2>&1")
+        else: os.system("systemctl restart sing-box >/dev/null 2>&1")
 
 def fetch_and_apply_configs():
     try:
