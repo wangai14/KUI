@@ -3,6 +3,7 @@
 # ==========================================
 # KUI Serverless 集群节点 - 智能跨系统安装脚本
 # 支持: Ubuntu 18-24 / Debian 10-13 / Alpine Linux
+# 特性: 强制阿里云源极速安装
 # ==========================================
 
 # 1. 解析传入的参数
@@ -34,6 +35,7 @@ fi
 echo "=========================================="
 echo " 🚀 KUI Agent 智能安装启动中..."
 echo " 💻 识别到目标系统: ${OS}"
+echo " ⚡ 镜像配置: 强制使用阿里云 (Aliyun) 极速源"
 echo "=========================================="
 
 echo "[1/6] 🧹 正在清理历史残留..."
@@ -51,7 +53,23 @@ else
 fi
 rm -rf /opt/kui /etc/sing-box/config.json
 
-echo "[2/6] 📦 正在安装系统底层依赖..."
+# 🌟 核心新增：全自动强制换源阿里云
+echo "[2/6] ⚡ 正在配置阿里云极速镜像源..."
+if [ "$OS" = "alpine" ]; then
+    sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+else
+    [ -f /etc/apt/sources.list ] && sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+    [ -f /etc/apt/sources.list ] && sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+    [ -f /etc/apt/sources.list ] && sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+    [ -f /etc/apt/sources.list ] && sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+    
+    if [ -d /etc/apt/sources.list.d ]; then
+        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/*.list 2>/dev/null || true
+        sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list.d/*.list 2>/dev/null || true
+    fi
+fi
+
+echo "[3/6] 📦 正在安装系统底层依赖..."
 if [ "$OS" = "alpine" ]; then
     apk update
     apk add python3 curl openssl iptables coreutils bash tar
@@ -60,11 +78,10 @@ else
     apt-get install -y python3 curl openssl iptables coreutils bash tar
 fi
 
-echo "[3/6] ⚙️ 部署 Sing-box 代理核心..."
+echo "[4/6] ⚙️ 部署 Sing-box 代理核心..."
 if ! command -v sing-box >/dev/null 2>&1; then
     echo "未检测到 Sing-box，正在拉取二进制文件..."
     if [ "$OS" = "alpine" ]; then
-        # Alpine 环境下载预编译二进制包
         ARCH=$(uname -m)
         case "$ARCH" in
             x86_64) SB_ARCH="amd64" ;;
@@ -78,14 +95,13 @@ if ! command -v sing-box >/dev/null 2>&1; then
         chmod +x /usr/bin/sing-box
         rm -rf sing-box.tar.gz sing-box-${SB_VER}-linux-${SB_ARCH}
     else
-        # Ubuntu/Debian 走官方一键脚本
         bash <(curl -fsSL https://sing-box.app/deb-install.sh)
     fi
 else
     echo "✅ Sing-box 已安装，跳过下载。"
 fi
 
-echo "[4/6] 📂 初始化 KUI 工作目录与环境..."
+echo "[5/6] 📂 初始化 KUI 工作目录与环境..."
 mkdir -p /opt/kui /etc/sing-box
 
 cat > /opt/kui/config.json <<EOF
@@ -101,9 +117,8 @@ echo "正在拉取最新版 Agent 执行器..."
 curl -sL "https://raw.githubusercontent.com/a62169722/KUI/main/vps/agent.py" -o /opt/kui/agent.py
 chmod +x /opt/kui/agent.py
 
-echo "[5/6] 🛡️ 智能注册底层守护进程..."
+echo "[6/6] 🛡️ 智能注册底层守护进程并启动..."
 if [ "$OS" = "alpine" ]; then
-    # Alpine OpenRC 守护进程配置
     cat > /etc/init.d/kui-agent <<EOF
 #!/sbin/openrc-run
 description="KUI Serverless Agent"
@@ -123,8 +138,8 @@ EOF
     chmod +x /etc/init.d/kui-agent /etc/init.d/sing-box
     rc-update add kui-agent default
     rc-update add sing-box default
+    rc-service kui-agent start
 else
-    # Debian/Ubuntu Systemd 守护进程配置
     cat > /etc/systemd/system/kui-agent.service <<EOF
 [Unit]
 Description=KUI Serverless Agent
@@ -143,12 +158,6 @@ EOF
     systemctl daemon-reload
     systemctl enable kui-agent
     systemctl enable sing-box
-fi
-
-echo "[6/6] ⚡ 启动节点通信引擎..."
-if [ "$OS" = "alpine" ]; then
-    rc-service kui-agent start
-else
     systemctl start kui-agent
 fi
 
@@ -156,4 +165,5 @@ echo "=========================================="
 echo " 🎉 KUI Agent 跨平台部署成功！"
 echo " 节点 IP: ${VPS_IP}"
 echo " 系统架构: ${OS}"
+echo " 提示: 所有依赖已通过阿里云镜像站极速完成安装。"
 echo "=========================================="
